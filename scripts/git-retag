@@ -1,0 +1,32 @@
+#!/usr/bin/ruby
+
+# match "<topic-a-start>" or "<topic-a-end> <topic-b-start>"
+TAG_MATCH = /<(.*?)>/
+
+def git_logs
+  `git log --oneline`
+end
+
+def sha_for_tag(tag)
+  `git log --format=format:%H --grep "#{tag}"`
+end
+
+def extract_tags_from_messages
+  git_logs.scan(TAG_MATCH).flatten
+end
+
+### do the work ###
+
+tags_to_shas = extract_tags_from_messages.to_h do |tag|
+  [tag, sha_for_tag(tag)]
+end
+
+puts "\n\n===== Replace Tags: copy-paste to run ===== "
+tags_to_shas.each do |tag, sha|
+  puts "git tag --force #{tag} #{sha}"
+end
+
+puts "
+Next:
+git push --tags --force
+"
