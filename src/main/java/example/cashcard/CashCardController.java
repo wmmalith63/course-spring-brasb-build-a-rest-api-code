@@ -10,7 +10,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.security.Principal;
-import java.util.*;
+import java.util.Collection;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/cashcards")
@@ -51,5 +52,16 @@ public class CashCardController {
                         pageable.getSortOr(Sort.by(Sort.Direction.ASC, "amount"))
                 ));
         return ResponseEntity.ok(page.toList());
+    }
+
+    @PutMapping
+    private ResponseEntity<Void> putCashCard(@RequestBody CashCard newCashCardRequest, Principal principal) {
+        CashCard cashCard = cashCardRepository.findByIdAndOwner(newCashCardRequest.id(), principal.getName());
+        if (cashCard != null) {
+            CashCard updatedCashCard = new CashCard(cashCard.id(), newCashCardRequest.amount(), principal.getName());
+            cashCardRepository.save(updatedCashCard);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 }
