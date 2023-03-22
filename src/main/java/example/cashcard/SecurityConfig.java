@@ -1,5 +1,9 @@
 package example.cashcard;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,7 +16,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
 
 @EnableWebSecurity
 @Configuration
@@ -27,7 +36,24 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 .and()
-                .httpBasic();
+                .httpBasic()
+                // In order to be able to read the cookie value from Javascript, you need to generate the csrf
+                // token and put it in a cookie.
+                // The token is only generated when accessed, so this filter accesses the token value and does
+                // nothing else, resulting the cookie being written to the response.
+                .and()
+                .addFilterAfter(new OncePerRequestFilter() {
+                    @Override
+                    protected void doFilterInternal(HttpServletRequest request,
+                                                    HttpServletResponse response,
+                                                    FilterChain filterChain) throws ServletException, IOException {
+                        // The CSRF cookie is only written when accessed. Force the cookie to be written by accessing it.
+                        CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+                        token.getToken();
+                        filterChain.doFilter(request, response);
+                    }
+                }, CsrfFilter.class)
+        ;
         return http.build();
     }
 

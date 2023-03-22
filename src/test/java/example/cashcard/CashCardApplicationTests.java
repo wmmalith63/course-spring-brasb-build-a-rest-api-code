@@ -163,11 +163,18 @@ class CashCardApplicationTests {
     }
 
     /**
-     * Create the most basic CSRF headers (Cookie + X-XSRF-TOKEN) that spring-security would accept.
-     * A Javascript application _can_ do this.
+     * This method creates the CSRF headers like a Javascript client would, by reading the cookie and then sending the
+     * value back in both the cookie and the header (the Double-Submit Cookie pattern).
      */
     private HttpHeaders createCsrfHeaders() {
-        HttpCookie cookie = new HttpCookie("XSRF-TOKEN", "some-value");
+        ResponseEntity<Void> response = restTemplate.withBasicAuth("sarah1", "abc123")
+                .exchange("/cashcards", HttpMethod.HEAD, null, Void.class);
+        HttpCookie cookie = HttpCookie.parse(response.getHeaders().getFirst(HttpHeaders.SET_COOKIE))
+                .stream()
+                .filter(c -> c.getName().equals("XSRF-TOKEN"))
+                .findFirst()
+                .get();
+
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.COOKIE, cookie.toString());
         headers.add("X-XSRF-TOKEN", cookie.getValue());
