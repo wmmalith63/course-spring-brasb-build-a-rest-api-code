@@ -7,11 +7,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.test.annotation.DirtiesContext;
 
+import java.net.HttpCookie;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,16 +50,18 @@ class CashCardApplicationTests {
 
     @Test
     @DirtiesContext
-    void shouldCreateANewCashCard() {
+    void shouldCreateANewCashCard() throws URISyntaxException {
+        HttpHeaders headers = createCsrfHeaders();
         CashCard newCashCard = new CashCard(null, 250.00, "sarah1");
+        RequestEntity<CashCard> request = new RequestEntity<>(newCashCard, headers, HttpMethod.POST, new URI("/cashcards"));
+
         ResponseEntity<Void> createResponse = restTemplate
                 .withBasicAuth("sarah1", "abc123")
-                .postForEntity("/cashcards", newCashCard, Void.class);
+                .postForEntity("/cashcards", request, Void.class);
         assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         URI locationOfNewCashCard = createResponse.getHeaders().getLocation();
-        ResponseEntity<String> getResponse = restTemplate
-                .withBasicAuth("sarah1", "abc123")
+        ResponseEntity<String> getResponse = restTemplate.withBasicAuth("sarah1", "abc123")
                 .getForEntity(locationOfNewCashCard, String.class);
         assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
@@ -157,5 +160,17 @@ class CashCardApplicationTests {
                 .withBasicAuth("sarah1", "abc123")
                 .getForEntity("/cashcards/102", String.class); // kumar2's data
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Create the most basic CSRF headers (Cookie + X-XSRF-TOKEN) that spring-security would accept.
+     * A Javascript application _can_ do this.
+     */
+    private HttpHeaders createCsrfHeaders() {
+        HttpCookie cookie = new HttpCookie("XSRF-TOKEN", "some-value");
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.COOKIE, cookie.toString());
+        headers.add("X-XSRF-TOKEN", cookie.getValue());
+        return headers;
     }
 }
