@@ -1,8 +1,6 @@
 package example.cashcard;
 
-public class CashCard {
-
-    public CashCard(long l, double d) {
-    }
+public record CashCard(Long id, Double amount) {
+    
 
 }
